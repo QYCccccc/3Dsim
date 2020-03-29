@@ -37,6 +37,7 @@ Zuo Lu				2018/02/07        2.0			The release version 									lzuo@hust.edu.cn
 #include "interface.h"
 #include "ftl.h"
 #include "fcl.h"
+#include "ssd.h"
 
 #define FALSE		0
 #define TRUE		1
