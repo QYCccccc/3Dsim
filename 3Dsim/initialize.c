@@ -364,13 +364,13 @@ struct blk_info * initialize_block(struct blk_info * p_block,struct parameter_va
 {
 	unsigned int i;
 	struct page_info * p_page;
+	double randomNum = Random_LogNormal(0, 1, 0.5, 1);
 	
 	p_block->erase_count = 0;
 	p_block->page_read_count = 0;
 	p_block->page_write_count = 0;
 	p_block->pre_write_count = 0;
-
-	p_block->erase_limit = parameter->ers_limit;
+	p_block->erase_limit = (unsigned int)((double)parameter->ers_limit * randomNum);
 
 	p_block->free_page_num = parameter->page_block;	// all pages are free
 	p_block->last_write_page = -1;	// no page has been programmed

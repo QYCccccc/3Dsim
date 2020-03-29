@@ -34,7 +34,6 @@ Zuo Lu				2018/02/07        2.0			The release version 									lzuo@hust.edu.cn
 #include <time.h>
 #include <ctype.h>
 #include "avlTree.h"
-#include <math.h>
 
 #define SECTOR 512	//定义扇区大小为512byte
 #define BUFSIZE 200
