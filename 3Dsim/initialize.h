@@ -34,6 +34,7 @@ Zuo Lu				2018/02/07        2.0			The release version 									lzuo@hust.edu.cn
 #include <time.h>
 #include <ctype.h>
 #include "avlTree.h"
+#include <math.h>
 
 #define SECTOR 512	//定义扇区大小为512byte
 #define BUFSIZE 200
@@ -394,7 +395,7 @@ struct plane_info{
 
 struct blk_info{
 	unsigned int erase_count;          //The number of erasures for the block, which is recorded in ram for the GC
-	unsigned int ers_limit;             //The number of times each block in the chip can be erased 用于表示块的强度
+	unsigned int erase_limit;             //The number of times each block in the chip can be erased 用于表示块的强度
 	unsigned int page_read_count;	   //Record the number of read pages of the block
 	unsigned int page_write_count;	   //Record the number of write pages
 	unsigned int pre_write_count;	   //Record the number of times the prepress was written

@@ -38,6 +38,7 @@ Zuo Lu				2018/02/07        2.0			The release version 									lzuo@hust.edu.cn
 #include "ftl.h"
 #include "fcl.h"
 #include "ssd.h"
+#include <math.h>
 
 #define FALSE		0
 #define TRUE		1
@@ -327,7 +328,38 @@ struct page_info * initialize_page(struct page_info * p_page )
 	p_page->written_count=0;
 	return p_page;
 }
-
+/**
+ *产生(min,max)之间均匀分布的随机数
+ */
+double AverageRandom(double min, double max)
+{
+	int MINnteger = (int)(min * 10000);
+	int MAXnteger = (int)(max * 10000);
+	int randInteger = rand() * rand();
+	int diffInteger = MAXnteger - MINnteger;
+	int resultInteger = randInteger % diffInteger + MINnteger;
+	return resultInteger / 10000.0;
+}
+//对数正态分布概率密度函数
+double LogNormal(double x, double miu, double sigma) 
+{
+	double PI = 3.14159;
+	return 1.0 / (x * sqrt(2 * PI) * sigma) * exp(-1 * (log(x) - miu) * (log(x) - miu) / (2 * sigma * sigma));
+}
+//产生对数正态分布随机数
+double Random_LogNormal(double miu, double sigma, double min, double max)
+{
+	double x;
+	double dScope;
+	double y;
+	do
+	{
+		x = AverageRandom(min, max);
+		y = LogNormal(x, miu, sigma);
+		dScope = AverageRandom(0, LogNormal(miu, miu, sigma));
+	} while (dScope > y);
+	return x;
+}
 struct blk_info * initialize_block(struct blk_info * p_block,struct parameter_value *parameter)
 {
 	unsigned int i;
@@ -337,6 +369,8 @@ struct blk_info * initialize_block(struct blk_info * p_block,struct parameter_va
 	p_block->page_read_count = 0;
 	p_block->page_write_count = 0;
 	p_block->pre_write_count = 0;
+
+	p_block->erase_limit = parameter->ers_limit;
 
 	p_block->free_page_num = parameter->page_block;	// all pages are free
 	p_block->last_write_page = -1;	// no page has been programmed
