@@ -57,6 +57,7 @@ int get_requests(struct ssd_info *ssd)
 	char buffer[200];
 	unsigned int lsn = 0;
 	int device, size, ope, large_lsn, i = 0, j = 0;
+	unsigned int approxFlag = 0;  //½üËÆ±êÇ©
 	struct request *request1;
 	int flag = 1;
 	long filepoint;
@@ -92,7 +93,7 @@ int get_requests(struct ssd_info *ssd)
 		{
 			filepoint = ftell(ssd->tracefile);
 			fgets(buffer, 200, ssd->tracefile);
-			sscanf(buffer, "%I64u %d %d %d %d", &time_t, &device, &lsn, &size, &ope);
+			sscanf(buffer, "%I64u %d %d %d %d %d", &time_t, &device, &lsn, &size, &ope, &approxFlag);
 		}
 		else
 		{
@@ -102,7 +103,7 @@ int get_requests(struct ssd_info *ssd)
 					break;
 				filepoint = ftell(ssd->tracefile);
 				fgets(buffer, 200, ssd->tracefile);
-				sscanf(buffer, "%I64u %d %d %d %d", &time_t, &device, &lsn, &size, &ope);
+				sscanf(buffer, "%I64u %d %d %d %d %d", &time_t, &device, &lsn, &size, &ope, &approxFlag);
 			}
 			ope = 0;
 		}
@@ -209,7 +210,7 @@ int get_requests(struct ssd_info *ssd)
 	request1->time = time_t;
 	request1->lsn = lsn;
 	request1->size = size;
-
+	request1->approxFlag = approxFlag;
 	/*
 	if (ssd->pre_process_cmplt == 0 && ope == READ)
 		request1->operation = WRITE;
@@ -274,7 +275,7 @@ int get_requests(struct ssd_info *ssd)
 
 	filepoint = ftell(ssd->tracefile);
 	fgets(buffer, 200, ssd->tracefile);    //find the arrival time of the next request
-	sscanf(buffer, "%I64u %d %d %d %d", &time_t, &device, &lsn, &size, &ope);
+	sscanf(buffer, "%I64u %d %d %d %d %d", &time_t, &device, &lsn, &size, &ope, &approxFlag);
 	ssd->next_request_time = time_t;
 	fseek(ssd->tracefile, filepoint, 0);
 
