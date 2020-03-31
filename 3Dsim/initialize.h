@@ -477,6 +477,7 @@ struct request{
 	unsigned int size;                 //The size of the request, the number of sectors
 	unsigned int operation;            //The type of request, 1 for the read, 0 for the write
 	unsigned int cmplt_flag;		   //Whether the request is executed, 0 means no execution, 1 means it has been executed
+	unsigned int approxFlag;			//近似标签。1表示近似写入，2表示精确写入
 
 	unsigned int* need_distr_flag;
 	unsigned int complete_lsn_count;   //record the count of lsn served by buffer
