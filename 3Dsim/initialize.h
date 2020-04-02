@@ -409,7 +409,8 @@ struct blk_info{
 struct page_info{                      //lpn records the physical page stored in the logical page, when the logical page is valid, valid_state>0, free_state>0
 	int valid_state;                   //indicate the page is valid or invalid
 	int free_state;                    //each bit indicates the subpage is free or occupted. 1 indicates that the bit is free and 0 indicates that the bit is used
-	unsigned int lpn;                 
+	unsigned int lpn;
+	unsigned int approxFlag;			//近似标签。1表示近似模式，2表示精确模式
 	unsigned int written_count;        //Record the number of times the page was written
 };
 
@@ -477,7 +478,7 @@ struct request{
 	unsigned int size;                 //The size of the request, the number of sectors
 	unsigned int operation;            //The type of request, 1 for the read, 0 for the write
 	unsigned int cmplt_flag;		   //Whether the request is executed, 0 means no execution, 1 means it has been executed
-	unsigned int approxFlag;			//近似标签。1表示近似写入，2表示精确写入
+	unsigned int approxFlag;			//近似标签。1表示近似模式，2表示精确模式
 
 	unsigned int* need_distr_flag;
 	unsigned int complete_lsn_count;   //record the count of lsn served by buffer
@@ -498,6 +499,7 @@ struct sub_request{
 	unsigned int ppn;                  //The physical page number of the request
 	unsigned int operation;            //Indicates the type of the sub request, except that read 1 write 0, there are erase, two plane and other operations
 	int size;
+	unsigned int approxFlag;			//近似标签。1表示近似模式，2表示精确模式
 
 	unsigned int current_state;        //Indicates the status of the subquery
 	__int64 current_time;
@@ -586,6 +588,8 @@ struct parameter_value{
 	int warm_flash;
 	int update_reqeust_max;		    //request the length of sub request(partial page)
 	int flash_mode;                 //0--slc mode,1--tlc mode
+	unsigned int approxFlag;			//近似标签。1表示近似模式，2表示精确模式
+	float speed_rate;				//近似加速比,即采用近似模式可以加快操作介质的时间的比例
 
 	struct ac_time_characteristics time_characteristics;
 };
@@ -596,7 +600,8 @@ struct parameter_value{
 *********************************************************/
 struct entry{                       
 	unsigned int pn;                //Physical number, either a physical page number, a physical subpage number, or a physical block number
-	int state;                      //The hexadecimal representation is 0000-FFFF, and each bit indicates whether the corresponding subpage is valid (page mapping). 
+	int state;                      //The hexadecimal representation is 0000-FFFF, and each bit indicates whether the corresponding subpage is valid (page mapping).
+	unsigned int approxFlag;			//近似标签。1表示近似模式，2表示精确模式
 
 	//used in aware workloads
 	long long write_count;
