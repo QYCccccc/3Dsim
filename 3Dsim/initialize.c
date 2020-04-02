@@ -680,7 +680,15 @@ struct parameter_value *load_parameters(char parameter_file[30])
 		{
 			sscanf(buf+12,"%d",&i);
 			sscanf(buf + next_eql,"%d",&p->chip_channel[i]);            //The number of chips on a channel
-		}else{
+		}
+		else if ((res_eql = strcmp(buf, "approxFlag")) == 0){
+			sscanf(buf + next_eql, "%d", &p->approxFlag);
+		}
+		else if ((res_eql = strcmp(buf, "speed_rate")) == 0)
+		{
+			sscanf(buf + next_eql, "%f", &p->speed_rate);
+		}
+		else{
 			printf("don't match\t %s\n",buf);
 		}
 		

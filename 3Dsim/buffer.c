@@ -77,7 +77,7 @@ struct ssd_info *buffer_management(struct ssd_info *ssd)
 		//handle_read_cache(ssd, new_request);
 		handle_write_buffer(ssd, new_request);
 	}
-	//完全命中，则计算延时
+	//完全命中，则计算延时，即该请求的所有LPN都在buffer中，就不会生成子请求
 	if (new_request->subs == NULL)
 	{
 		new_request->begin_time = ssd->current_time;
@@ -89,6 +89,12 @@ struct ssd_info *buffer_management(struct ssd_info *ssd)
 	return ssd;
 }
 
+/**
+ * \brief 用于处理从ssd的请求队列中取出的工作请求，将工作请求划分为多个LPN依次处理
+ * \param ssd ssd结构体
+ * \param req 从ssd的请求队列中取出的工作请求指针
+ * \return 
+ */
 struct ssd_info *handle_write_buffer(struct ssd_info *ssd, struct request *req)
 {
 	unsigned int full_page, lsn, lpn, last_lpn, first_lpn;
@@ -98,7 +104,7 @@ struct ssd_info *handle_write_buffer(struct ssd_info *ssd, struct request *req)
 	//进行4kb对齐
 	req->size = ((req->lsn + req->size - 1) / secno_num_sub_page - (req->lsn) / secno_num_sub_page + 1) * secno_num_sub_page;     //req大小  单位扇区
 	req->lsn /= secno_num_sub_page;
-	req->lsn *= secno_num_sub_page;                                                                                                //req 其实扇区号
+	req->lsn *= secno_num_sub_page;                                                                                                //req 真实扇区号
 
 	full_page = ~(0xffffffff << ssd->parameter->subpage_page);    //全页，表示lpn的子页都是满的  0000_1111
 	lsn = req->lsn;//起始扇区号
@@ -166,6 +172,15 @@ struct ssd_info *handle_read_cache(struct ssd_info *ssd, struct request *req)   
 	return ssd;
 }
 
+/**
+ * \brief 处理读请求中的一个LPN，未在buffer中命中则生成子请求，并挂载在channel上
+ * \param ssd 
+ * \param lpn 读请求当前需要操作的LPN
+ * \param state 操作的LPN的状态，即子页有效状态
+ * \param sub 
+ * \param req 
+ * \return 
+ */
 struct ssd_info * check_w_buff(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_request *sub, struct request *req)
 {
 	unsigned int sub_req_state = 0, sub_req_size = 0, sub_req_lpn = 0;
@@ -205,9 +220,10 @@ struct ssd_info * check_w_buff(struct ssd_info *ssd, unsigned int lpn, int state
 	return ssd;
 }
 
-/*******************************************************************************
+/**
 *The function is to write data to the buffer,Called by buffer_management()
-********************************************************************************/
+*处理写请求中的一个LPN，
+*/
 struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_request *sub, struct request *req)
 {
 	int write_back_count, flag = 0;                                                             /*flag表示为写入新数据腾空间是否完成，0表示需要进一步腾，1表示已经腾空*/
@@ -222,7 +238,7 @@ struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int stat
 	printf("enter insert2buffer,  current time:%I64u, lpn:%d, state:%d,\n", ssd->current_time, lpn, state);
 #endif
 
-	sector_count = size(state);                                                                /*需要写到buffer的sector个数*/
+	sector_count = size(state);        /*需要写到buffer的sector个数,其实是sub_page数*/
 	key.group = lpn;                //group 即一个int 
 	buffer_node = (struct buffer_group*)avlTreeFind(ssd->dram->buffer, (TREE_NODE *)&key);    /*在平衡二叉树中寻找buffer node*/
 
@@ -244,7 +260,7 @@ struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int stat
 		if (flag == 0)   //没有足够的空间
 		{
 			write_back_count = sector_count - free_sector;
-			while (write_back_count>0)
+			while (write_back_count>0)  //将LRU链表尾结点写回闪存中
 			{
 				sub_req = NULL;
 				sub_req_state = ssd->dram->buffer->buffer_tail->stored;
@@ -340,9 +356,9 @@ struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int stat
 				req->complete_lsn_count += size(state);                                       
 			}
 		}
-		else
+		else //部分命中
 		{
-			add_size = size((state | buffer_node->stored) ^ buffer_node->stored);					 //需要额外写入缓存的
+			add_size = size((state | buffer_node->stored) ^ buffer_node->stored);					 //不在buffer中的部分，即需要额外写入缓存的
 			while((ssd->dram->buffer->buffer_sector_count + add_size) > ssd->dram->buffer->max_buffer_sector)
 			{
 				if (buffer_node == ssd->dram->buffer->buffer_tail)                  /*如果命中的节点是buffer中最后一个节点，交换最后两个节点*/
@@ -1065,9 +1081,9 @@ struct ssd_info * insert2_command_buffer(struct ssd_info * ssd, struct buffer_in
 }
 
 
-/**************************************************************
-this function is to create sub_request based on lpn, size, state
-****************************************************************/
+///this function is to create sub_request based on lpn, size, state。
+///主要功能就是创建一个子请求，并将其挂载到相应的子请求队列上
+///写子请求可能会有更新读请求挂载
 struct sub_request * creat_sub_request(struct ssd_info * ssd, unsigned int lpn, int size, unsigned int state, struct request * req, unsigned int operation)
 {
 	struct sub_request* sub = NULL, *sub_r = NULL;
@@ -1155,7 +1171,7 @@ struct sub_request * creat_sub_request(struct ssd_info * ssd, unsigned int lpn, 
 	/*************************************************************************************
 	*写请求的情况下，就需要利用到函数allocate_location(ssd ,sub)来处理静态分配和动态分配了
 	**************************************************************************************/
-	else if (operation == WRITE)  //看不懂
+	else if (operation == WRITE)  //
 	{
 		sub->ppn = 0;
 		sub->operation = WRITE;
@@ -1195,9 +1211,12 @@ struct sub_request * creat_sub_request(struct ssd_info * ssd, unsigned int lpn, 
 	return sub;
 }
 
-/***************************************
+/**
 *Write request allocation mount
-***************************************/
+*首先判断会不会产生更新写操作，更新写操作需要先读后写，生成一个更新读请求，挂载在该子请求上。
+*然后调用allocation_method()函数，静态分配方式下可以获得位置信息，并挂载到channel的子请求的队列上，
+*动态分配方式下返回ssd_mount，挂载到ssd的子请求队列上
+*/
 Status allocate_location(struct ssd_info * ssd, struct sub_request *sub_req)
 {
 	struct sub_request * update = NULL, *sub_r = NULL;
@@ -1206,8 +1225,8 @@ Status allocate_location(struct ssd_info * ssd, struct sub_request *sub_req)
 	struct allocation_info * allocation1 = NULL;
 
 	//判断是否会产生更新写操作，更新写操作要先读后写
-	if (ssd->dram->map->map_entry[sub_req->lpn].state != 0)
-	{
+	if (ssd->dram->map->map_entry[sub_req->lpn].state != 0) //说明有的子页是有效的,此时有可能为更新写操作
+	{	//写子请求中的逻辑页状态与物理页状态不同，说明就是要更新该物理页的内容，而SSD不能重复写，所以要将数据读出，更新后再进行写入
 		if ((sub_req->state&ssd->dram->map->map_entry[sub_req->lpn].state) != ssd->dram->map->map_entry[sub_req->lpn].state)
 		{
 			//ssd->read_count++;
@@ -1286,6 +1305,7 @@ Status allocate_location(struct ssd_info * ssd, struct sub_request *sub_req)
 	sub_req->location->plane = allocation1->plane;
 
 	//根据mount_flag, 选择挂载在channel上还是ssd上
+	//动态分配则挂在到ssd上，因为还不知道分配到哪个channel
 	if (allocation1->mount_flag == SSD_MOUNT)
 	{
 		if (ssd->subs_w_tail != NULL)

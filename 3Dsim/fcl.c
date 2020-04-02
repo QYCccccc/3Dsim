@@ -129,7 +129,7 @@ Status services_2_r_data_trans(struct ssd_info * ssd, unsigned int channel)
 	return SUCCESS;
 }
 
-/*********************************************************************************************
+/**
 1.找到当前状态是CHIP_READ_BUSY，或者下一状态为CHIP_READ_BUSY
 并且下一状态到达预计时间小于当前当前时间的chip。
 2.找出符合位置条件，以及其下一状态为SR_R_READ并且下一状态预计时间小于当前时间的sub_requeset
