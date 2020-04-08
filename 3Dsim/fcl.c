@@ -815,10 +815,16 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			*这个目标状态是指flash处于读数据的状态，sub的下一状态就应该是传送数据SR_R_DATA_TRANSFER
 			*这时与channel无关，只与chip有关所以要修改chip的状态为CHIP_READ_BUSY，下一个状态就是CHIP_DATA_TRANSFER
 			******************************************************************************************************/
+			double speed_rate = 1.0;
+			if((sub->approxFlag == 1) && 
+				ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag == 1)
+			{
+				speed_rate = ssd->parameter->speed_rate;
+			}
 			sub->current_time = ssd->current_time;
 			sub->current_state = SR_R_READ;
 			sub->next_state = SR_R_DATA_TRANSFER;
-			sub->next_state_predict_time = ssd->current_time + ssd->parameter->time_characteristics.tR;
+			sub->next_state_predict_time = ssd->current_time + (long long)((double)ssd->parameter->time_characteristics.tR * speed_rate);
 
 			ssd->read_count++;
 			ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_read_count++;
@@ -826,7 +832,8 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			ssd->channel_head[location->channel].chip_head[location->chip].current_state = CHIP_READ_BUSY;
 			ssd->channel_head[location->channel].chip_head[location->chip].current_time = ssd->current_time;
 			ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_DATA_TRANSFER;
-			ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = ssd->current_time + ssd->parameter->time_characteristics.tR;
+			//ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = ssd->current_time + ssd->parameter->time_characteristics.tR;
+			ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = sub->next_state_predict_time;
 			
 		
 			break;
@@ -891,11 +898,16 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			*此时channel，chip的当前状态变为CHANNEL_TRANSFER，CHIP_WRITE_BUSY
 			*下一个状态变为CHANNEL_IDLE，CHIP_IDLE
 			*******************************************************************************************************/
+			double speed_rate = 1.0;
+			if (sub->approxFlag == 1)
+			{
+				speed_rate = ssd->parameter->speed_rate;
+			}
 			sub->current_time = ssd->current_time;
 			sub->current_state = SR_W_TRANSFER;
 			sub->next_state = SR_COMPLETE;
 			sub->next_state_predict_time = ssd->current_time + 7 * ssd->parameter->time_characteristics.tWC + 
-			(sub->size*ssd->parameter->subpage_capacity)*ssd->parameter->time_characteristics.tWC + ssd->parameter->time_characteristics.tPROG;
+			(sub->size*ssd->parameter->subpage_capacity)*ssd->parameter->time_characteristics.tWC + (long long)((double)ssd->parameter->time_characteristics.tPROG * speed_rate);
 			
 			sub->complete_time = sub->next_state_predict_time;
 			time = sub->complete_time;

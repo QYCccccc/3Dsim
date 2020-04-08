@@ -448,6 +448,7 @@ typedef struct buffer_group{
 	unsigned int dirty_clean;           //it is flag of the data has been modified, one bit indicates one subpage. EX. 0001 indicates the first subpage is dirty
 	int flag;			                //indicates if this node is the last 20% of the LRU list	
 	unsigned int page_type;				//buff page type:0--full_page  1--partial_page
+	unsigned int approxFlag;			//表明此节点为精确或近似数据
 }buf_node;
 
 
@@ -589,7 +590,7 @@ struct parameter_value{
 	int update_reqeust_max;		    //request the length of sub request(partial page)
 	int flash_mode;                 //0--slc mode,1--tlc mode
 	unsigned int approxFlag;			//近似标签。1表示近似模式，2表示精确模式
-	float speed_rate;				//近似加速比,即采用近似模式可以加快操作介质的时间的比例
+	double speed_rate;				//近似加速比,即采用近似模式可以加快操作介质的时间的比例
 
 	struct ac_time_characteristics time_characteristics;
 };

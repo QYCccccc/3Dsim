@@ -210,7 +210,7 @@ int get_requests(struct ssd_info *ssd)
 	request1->time = time_t;
 	request1->lsn = lsn;
 	request1->size = size;
-	request1->approxFlag = approxFlag;	//主要用于表示是否为近似写入
+	request1->approxFlag = approxFlag;	//主要用于表示是否为近似模式
 	/*
 	if (ssd->pre_process_cmplt == 0 && ope == READ)
 		request1->operation = WRITE;

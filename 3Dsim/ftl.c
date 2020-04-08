@@ -53,6 +53,7 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
 {
 	int fl = 0;
 	unsigned int device, lsn, size, ope;
+	unsigned int approxFlag;
 	unsigned int largest_lsn, ppn;
 	unsigned int lpn, full_page, last_lpn, first_lpn, mask, state;
 	unsigned int offset1 = 0, offset2 = 0;
@@ -79,7 +80,7 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
 
 	while (fgets(buffer_request, 200, ssd->tracefile))
 	{
-		sscanf_s(buffer_request, "%I64u %d %d %d %d", &time, &device, &lsn, &size, &ope);
+		sscanf_s(buffer_request, "%I64u %d %d %d %d %d", &time, &device, &lsn, &size, &ope, &approxFlag);
 		fl++;
 		trace_assert(time, device, lsn, size, ope);                       
 
@@ -162,12 +163,14 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
 					location = find_location(ssd, ppn);
 					ssd->pre_all_write++;
 					ssd->dram->map->map_entry[lpn].pn = ppn;
-					ssd->dram->map->map_entry[lpn].state = state;   
+					ssd->dram->map->map_entry[lpn].state = state;
+					ssd->dram->map->map_entry[lpn].approxFlag = approxFlag;		//设置近似标签为从trace文件读取出的值
 					ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].pre_write_count++;
 					ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = lpn;
 					ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = ssd->dram->map->map_entry[lpn].state;
 					ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = ((~ssd->dram->map->map_entry[lpn].state)&full_page);
-				
+					ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag = approxFlag;  //设置页的近似标签
+
 					free(location);
 					location = NULL;
 				}

@@ -238,7 +238,7 @@ struct ssd_info *simulate(struct ssd_info *ssd)
 			* -1 : no request has been added
 			* 1 : add one request to list
 			*/
-		flag = get_requests(ssd);        
+		flag = get_requests(ssd);
 		
 		/*buffer layer*/
 		if (flag == 1 || (flag == 0 && ssd->request_work != NULL))

@@ -196,7 +196,7 @@ struct ssd_info * check_w_buff(struct ssd_info *ssd, unsigned int lpn, int state
 		sub_req_state = state;
 		sub_req_size = size(state);
 		sub_req_lpn = lpn;
-		sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, READ);     //生成子请求，挂载在总请求上
+		sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, READ, req->approxFlag);     //生成子请求，挂载在总请求上
 
 		ssd->dram->buffer->read_miss_hit++;            //读命中失效次数+1
 	}
@@ -212,7 +212,7 @@ struct ssd_info * check_w_buff(struct ssd_info *ssd, unsigned int lpn, int state
 			sub_req_state = (state | buffer_node->stored) ^ buffer_node->stored;       //^ 异或  相同为0 不同为1 得到不在buffer中的子页
 			sub_req_size = size(sub_req_state);     //子请求需要读的子页的数目                通过查看sub_req_state中有几个1即需要读取几个子页
 			sub_req_lpn = lpn;
-			sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, READ);
+			sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, READ, req->approxFlag);
 
 			ssd->dram->buffer->read_miss_hit++;
 		}
@@ -232,6 +232,7 @@ struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int stat
 	struct sub_request *sub_req = NULL, *update = NULL;
 
 	unsigned int sub_req_state = 0, sub_req_size = 0, sub_req_lpn = 0;
+	unsigned int sub_req_approxFlag = 0; //近似标签
 	unsigned int add_size;
 
 #ifdef DEBUG
@@ -266,15 +267,16 @@ struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int stat
 				sub_req_state = ssd->dram->buffer->buffer_tail->stored;
 				sub_req_size = size(ssd->dram->buffer->buffer_tail->stored);
 				sub_req_lpn = ssd->dram->buffer->buffer_tail->group;
-				
+
+				sub_req_approxFlag = ssd->dram->buffer->buffer_tail->approxFlag;	//得到该结点原来的写入模式
 				/*
 				if (ssd->parameter->allocation_scheme == DYNAMIC_ALLOCATION)
 					insert2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
 				else
 					sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
 				*/
-				//将写回请求分配到command_buffer
-				distribute2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
+				//将写回请求分配到command_buffer   req为需要处理的写请求，而不是需要写回的请求
+				distribute2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE, sub_req_approxFlag);
 
 				/*********************************************************************
 				*维持平衡二叉树调用avlTreeDel()和AVL_TREENODE_FREE()函数；维持LRU算法；
@@ -311,6 +313,8 @@ struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int stat
 		alloc_assert(new_node, "buffer_group_node");
 		memset(new_node, 0, sizeof(struct buffer_group));
 
+		new_node->approxFlag = req->approxFlag;	//将请求的近似标签赋值给结点
+		
 		new_node->group = lpn;
 		new_node->stored = state;
 		new_node->dirty_clean = state;
@@ -377,6 +381,8 @@ struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int stat
 				sub_req_state = ssd->dram->buffer->buffer_tail->stored;
 				sub_req_size = size(ssd->dram->buffer->buffer_tail->stored);
 				sub_req_lpn = ssd->dram->buffer->buffer_tail->group;
+
+				sub_req_approxFlag = ssd->dram->buffer->buffer_tail->approxFlag;	//得到该结点原来的写入模式
 				/*
 				if (ssd->parameter->allocation_scheme == DYNAMIC_ALLOCATION)
 					insert2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
@@ -384,7 +390,7 @@ struct ssd_info * insert2buffer(struct ssd_info *ssd, unsigned int lpn, int stat
 					sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);*/
 				
 				//将请求分配到command_buffer
-				distribute2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
+				distribute2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE, sub_req_approxFlag);
 
 				ssd->dram->buffer->write_miss_hit++;
 				//删除尾节点
@@ -449,7 +455,7 @@ struct ssd_info * getout2buffer(struct ssd_info *ssd, struct sub_request *sub, s
 		sub_req_size = size(pt->stored);
 		sub_req_lpn = pt->group;
 		sub_req = NULL;
-		sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
+		sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE, 0);
 
 		//Delete the node
 		ssd->dram->command_buffer->command_buff_page--;
@@ -485,7 +491,7 @@ struct ssd_info * getout2buffer(struct ssd_info *ssd, struct sub_request *sub, s
 		sub_req_size = size(pt->stored);
 		sub_req_lpn = pt->group;
 		sub_req = NULL;
-		sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
+		sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE, 0);
 		ssd->dram->buffer->write_miss_hit++;
 
 		//Delete the node
@@ -557,7 +563,7 @@ struct ssd_info *no_buffer_distribute(struct ssd_info *ssd)
 		{
 			sub_state = (ssd->dram->map->map_entry[lpn].state & 0x7fffffff);
 			sub_size = size(sub_state);
-			sub = creat_sub_request(ssd, lpn, sub_size, sub_state, req, req->operation);
+			sub = creat_sub_request(ssd, lpn, sub_size, sub_state, req, req->operation, 0);
 			lpn++;
 		}
 	}
@@ -581,7 +587,7 @@ struct ssd_info *no_buffer_distribute(struct ssd_info *ssd)
 			}
 
 			sub_size = size(state);
-			sub = creat_sub_request(ssd, lpn, sub_size, state, req, req->operation);
+			sub = creat_sub_request(ssd, lpn, sub_size, state, req, req->operation, 0);
 			lpn++;
 		}
 	}
@@ -612,7 +618,7 @@ unsigned int size(unsigned int stored)
 	return total;
 }
 
-struct ssd_info * distribute2_command_buffer(struct ssd_info * ssd, unsigned int lpn, int size_count, unsigned int state, struct request * req, unsigned int operation)
+struct ssd_info * distribute2_command_buffer(struct ssd_info * ssd, unsigned int lpn, int size_count, unsigned int state, struct request * req, unsigned int operation, unsigned int approxFlag)
 {
 
 	unsigned int method_flag = 1;
@@ -624,7 +630,7 @@ struct ssd_info * distribute2_command_buffer(struct ssd_info * ssd, unsigned int
     
 	//将请求插入到对应的缓存中
 	if (allocation->aim_command_buffer != NULL)
-		insert2_command_buffer(ssd, allocation->aim_command_buffer, lpn, size_count, state,req, operation);
+		insert2_command_buffer(ssd, allocation->aim_command_buffer, lpn, size_count, state,req, operation, approxFlag);
 
 	//free掉地址空间
 	free(allocation);
@@ -965,7 +971,7 @@ __int64 calculate_distance(struct ssd_info * ssd, struct buffer_info * die_buffe
 }
 
 
-struct ssd_info * insert2_command_buffer(struct ssd_info * ssd, struct buffer_info * command_buffer, unsigned int lpn, int size_count, unsigned int state, struct request * req, unsigned int operation)
+struct ssd_info * insert2_command_buffer(struct ssd_info * ssd, struct buffer_info * command_buffer, unsigned int lpn, int size_count, unsigned int state, struct request * req, unsigned int operation, unsigned int approxFlag)
 {
 	unsigned int i = 0;
 	unsigned int sub_req_state = 0, sub_req_size = 0, sub_req_lpn = 0;
@@ -994,6 +1000,8 @@ struct ssd_info * insert2_command_buffer(struct ssd_info * ssd, struct buffer_in
 		alloc_assert(new_node, "buffer_group_node");
 		memset(new_node, 0, sizeof(struct buffer_group));
 
+		new_node->approxFlag = approxFlag;  //将写回请求的近似标签赋值给new_node
+		
 		new_node->group = lpn;
 		new_node->stored = state;
 		new_node->dirty_clean = state;
@@ -1026,7 +1034,9 @@ struct ssd_info * insert2_command_buffer(struct ssd_info * ssd, struct buffer_in
 				sub_req_state = command_buffer->buffer_tail->stored;
 				sub_req_size = size(command_buffer->buffer_tail->stored);
 				sub_req_lpn = command_buffer->buffer_tail->group;
-				sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state,req, operation);
+				unsigned int sub_req_approxFlag = command_buffer->buffer_tail->approxFlag;
+				
+				sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state,req, operation, sub_req_approxFlag);
 
 				//删除buff中的节点
 				pt = command_buffer->buffer_tail;
@@ -1084,7 +1094,7 @@ struct ssd_info * insert2_command_buffer(struct ssd_info * ssd, struct buffer_in
 ///this function is to create sub_request based on lpn, size, state。
 ///主要功能就是创建一个子请求，并将其挂载到相应的子请求队列上
 ///写子请求可能会有更新读请求挂载
-struct sub_request * creat_sub_request(struct ssd_info * ssd, unsigned int lpn, int size, unsigned int state, struct request * req, unsigned int operation)
+struct sub_request * creat_sub_request(struct ssd_info * ssd, unsigned int lpn, int size, unsigned int state, struct request * req, unsigned int operation, unsigned int approxFlag)
 {
 	struct sub_request* sub = NULL, *sub_r = NULL;
 	struct channel_info * p_ch = NULL;
@@ -1103,7 +1113,7 @@ struct sub_request * creat_sub_request(struct ssd_info * ssd, unsigned int lpn, 
 	sub->next_node = NULL;
 	sub->next_subs = NULL;
 	sub->update = NULL;
-
+	
 	//将子请求挂载在总请求上，为请求的执行完成做准备
 	if (req != NULL)
 	{
@@ -1129,6 +1139,8 @@ struct sub_request * creat_sub_request(struct ssd_info * ssd, unsigned int lpn, 
 		sub->size = size;                                                      /*需要计算出该子请求的请求大小*/
 		sub->update_read_flag = 0;
 		sub->suspend_req_flag = NORMAL_TYPE;
+
+		sub->approxFlag = req->approxFlag;	//将请求的近似标签赋值给子请求
 
 		p_ch = &ssd->channel_head[loc->channel];
 		sub->ppn = ssd->dram->map->map_entry[lpn].pn;
@@ -1185,6 +1197,7 @@ struct sub_request * creat_sub_request(struct ssd_info * ssd, unsigned int lpn, 
 		sub->size = size;
 		sub->state = state;
 		sub->begin_time = ssd->current_time;
+		sub->approxFlag = approxFlag;
 
 		if (allocate_location(ssd, sub) == ERROR)
 		{
@@ -1259,6 +1272,7 @@ Status allocate_location(struct ssd_info * ssd, struct sub_request *sub_req)
 			update->operation = READ;
 			update->update_read_flag = 1;
 			update->suspend_req_flag = NORMAL_TYPE;
+			update->approxFlag = ssd->dram->map->map_entry[sub_req->lpn].approxFlag;
 
 			sub_r = ssd->channel_head[location->channel].subs_r_head;
 			flag = 0;
@@ -1406,7 +1420,7 @@ struct ssd_info *flush_all(struct ssd_info *ssd)
 			sub_req_size = size(ssd->dram->buffer->buffer_tail->stored);
 			sub_req_lpn = ssd->dram->buffer->buffer_tail->group;
 
-			distribute2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
+			distribute2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE, 0);
 
 			ssd->dram->buffer->buffer_sector_count = ssd->dram->buffer->buffer_sector_count - sub_req_size;
 

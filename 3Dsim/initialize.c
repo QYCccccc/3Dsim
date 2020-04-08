@@ -326,6 +326,7 @@ struct page_info * initialize_page(struct page_info * p_page )
 	p_page->free_state = PG_SUB;
 	p_page->lpn = -1;
 	p_page->written_count=0;
+	p_page->approxFlag = 0;
 	return p_page;
 }
 /**
@@ -686,7 +687,7 @@ struct parameter_value *load_parameters(char parameter_file[30])
 		}
 		else if ((res_eql = strcmp(buf, "speed_rate")) == 0)
 		{
-			sscanf(buf + next_eql, "%f", &p->speed_rate);
+			sscanf(buf + next_eql, "%lf", &p->speed_rate);
 		}
 		else{
 			printf("don't match\t %s\n",buf);
