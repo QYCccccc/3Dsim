@@ -241,6 +241,11 @@ struct ssd_info{
 	unsigned long suspend_count;
 	unsigned long suspend_read_count;
 
+	unsigned int approx_read_request_count;
+	unsigned int approx_write_request_count;
+	unsigned int approx_read_count;
+	unsigned int approx_write_count;
+	
 	unsigned long program_count;
 	unsigned long pre_all_write;		 //Record preprocessing write operation
 	unsigned long update_write_count;	 //Record the number of updates write

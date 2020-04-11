@@ -505,6 +505,8 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 		}
 		ssd->dram->map->map_entry[lpn].pn = find_ppn(ssd, channel, chip, die, plane, block, page);
 		ssd->dram->map->map_entry[lpn].state = sub->state;
+
+		ssd->dram->map->map_entry[lpn].approxFlag = sub->approxFlag;	//
 	}
 	else                                                                            /*This logical page has been updated, and the original page needs to be invalidated*/
 	{
@@ -516,10 +518,13 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 			printf("\nError in get_ppn()\n");
 			//getchar();
 		}
-
+		//因为ssd不能复写，所以将此页面置为无效
 		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0;           
 		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;              
 		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = 0;
+
+		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag = 0;
+		
 		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num++;
 
 		/*******************************************************************************************
@@ -568,6 +573,13 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].page_head[page].valid_state = sub->state;
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].page_head[page].free_state = ((~(sub->state))&full_page);
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].page_head[page].written_count++;
+	if (sub->approxFlag == 1)
+	{
+		ssd->approx_write_count++;
+	}
+	
+	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].page_head[page].approxFlag = sub->approxFlag;	//置页面的近似标签为请求中的近似标签
+	
 	ssd->write_flash_count++;
 
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].test_pro_count++;

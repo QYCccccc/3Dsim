@@ -202,6 +202,10 @@ void initialize_statistic(struct ssd_info * ssd)
 	ssd->ave_write_size = 0.0;
 	ssd->gc_count = 0;
 	ssd->mplane_erase_count = 0;
+	ssd->approx_read_request_count = 0;
+	ssd->approx_write_request_count = 0;
+	ssd->approx_write_count = 0;
+	ssd->approx_read_count = 0;
 
 	//Initializes the global variable for ssd_info
 	ssd->make_age_free_page = 0;

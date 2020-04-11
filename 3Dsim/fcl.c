@@ -816,10 +816,10 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			*这时与channel无关，只与chip有关所以要修改chip的状态为CHIP_READ_BUSY，下一个状态就是CHIP_DATA_TRANSFER
 			******************************************************************************************************/
 			double speed_rate = 1.0;
-			if((sub->approxFlag == 1) && 
-				ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag == 1)
+			if(ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag == 1)
 			{
 				speed_rate = ssd->parameter->speed_rate;
+				ssd->approx_read_count++;
 			}
 			sub->current_time = ssd->current_time;
 			sub->current_state = SR_R_READ;
@@ -1007,7 +1007,16 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 					subs[i]->current_time = ssd->current_time;
 					subs[i]->current_state = SR_R_READ;
 					subs[i]->next_state = SR_R_DATA_TRANSFER;
-					subs[i]->next_state_predict_time = subs[i]->current_time + read_time;
+					//如果子请求访问的页面存储的是近似数据则可以进一步加快读取速度
+					// if (ssd->channel_head[subs[i]->location->channel].chip_head[subs[i]->location->chip].die_head[subs[i
+					// 	]->location->die].plane_head[subs[i]->location->plane].blk_head[subs[i]->location->block].
+					// 	page_head[subs[i]->location->page].approxFlag == 1)
+					// {
+					// 	subs[i]->next_state_predict_time = subs[i]->current_time + (long long)((double)read_time * ssd->parameter->speed_rate);
+					// }
+					// else {
+					// 	subs[i]->next_state_predict_time = subs[i]->current_time + read_time;
+					// }
 
 					//更新读操作的计数值
 					ssd->channel_head[subs[i]->location->channel].chip_head[subs[i]->location->chip].die_head[subs[i]->location->die].plane_head[subs[i]->location->plane].blk_head[subs[i]->location->block].page_read_count++;    //read操作计数值增加
@@ -1344,11 +1353,22 @@ struct ssd_info *dynamic_advanced_process(struct ssd_info *ssd, unsigned int cha
 				service_advance_command(ssd, channel, chip, subs, subs_count, aim_subs_count, ONE_SHOT);
 			}
 		}
-		else
+		else   //当不支持高级命令的时候，使用one page  program
 		{
-			printf("Error! tlc mode match advanced commamd failed!\n");
-			getchar();
+			for (i = 1; i < subs_count; i++)
+			{
+				subs[i] = NULL;
+			}
+			subs_count = 1;
+			get_ppn_for_normal_command(ssd, channel, chip, subs[0]);
+			//printf("lz:normal program\n");
+			//getchar();
 		}
+		// else
+		// {
+		// 	printf("Error! tlc mode match advanced commamd failed!\n");
+		// 	getchar();
+		// }
 	}
 
 	//5.处理完成，释放请求数组空间，并返回ssd结构体，表示请求已执行
@@ -1727,7 +1747,12 @@ struct ssd_info *compute_serve_time(struct ssd_info *ssd, unsigned int channel, 
 	}
 	else if (command == NORMAL)
 	{
+		//普通命令只包含一个子请求
 		prog_time = ssd->parameter->time_characteristics.tPROG;
+		if (subs[0]->approxFlag == 1)
+		{
+			prog_time = prog_time * ssd->parameter->speed_rate;
+		}
 	}
 	else
 	{
@@ -1743,6 +1768,14 @@ struct ssd_info *compute_serve_time(struct ssd_info *ssd, unsigned int channel, 
 	//给当前请求加上写介质的时间
 	for (i = 0; i < subs_count; i++)
 	{
+		// if(subs[i]->approxFlag == 1)
+		// {
+		// 	subs[i]->next_state_predict_time = subs[i]->next_state_predict_time + prog_time * ssd->parameter->speed_rate;
+		// }
+		// else {
+		// 	subs[i]->next_state_predict_time = subs[i]->next_state_predict_time + prog_time;
+		// }
+		
 		subs[i]->next_state_predict_time = subs[i]->next_state_predict_time + prog_time;
 		subs[i]->complete_time = subs[i]->next_state_predict_time;
 	}
