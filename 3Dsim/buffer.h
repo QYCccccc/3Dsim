@@ -46,3 +46,4 @@ Status allocate_location(struct ssd_info * ssd, struct sub_request *sub_req);
 struct ssd_info *handle_write_buffer(struct ssd_info *ssd, struct request *req);
 struct ssd_info *handle_read_cache(struct ssd_info *ssd, struct request *req);
 struct ssd_info *flush_all(struct ssd_info *ssd);
+struct ssd_info* flush_all_before_exit(struct ssd_info* ssd);

@@ -1445,3 +1445,64 @@ struct ssd_info *flush_all(struct ssd_info *ssd)
 	}
 	return ssd;
 }
+
+struct ssd_info* flush_all_before_exit(struct ssd_info* ssd)
+{
+	struct buffer_group* pt;
+	struct sub_request* sub_req = NULL;
+	unsigned int sub_req_state = 0, sub_req_size = 0, sub_req_lpn = 0, sub_req_approxFlag = 0;
+
+	struct request* req = (struct request*)malloc(sizeof(struct request));
+	alloc_assert(req, "request");
+	memset(req, 0, sizeof(struct request));
+
+	if (ssd->request_queue == NULL)          //The queue is empty
+	{
+		ssd->request_queue = req;
+		ssd->request_tail = req;
+		ssd->request_work = req;
+		ssd->request_queue_length++;
+	}
+	else
+	{
+		(ssd->request_tail)->next_node = req;
+		ssd->request_tail = req;
+		if (ssd->request_work == NULL)
+			ssd->request_work = req;
+		ssd->request_queue_length++;
+	}
+
+	
+	if (ssd->trace_over_flag == 1)
+	{
+		while (ssd->dram->buffer->buffer_sector_count > 0)
+		{
+			//printf("%u\n", ssd->dram->buffer->buffer_sector_count);
+			sub_req = NULL;
+			sub_req_state = ssd->dram->buffer->buffer_tail->stored;
+			sub_req_size = size(ssd->dram->buffer->buffer_tail->stored);
+			sub_req_lpn = ssd->dram->buffer->buffer_tail->group;
+			sub_req_approxFlag = ssd->dram->buffer->buffer_tail->approxFlag;
+			
+			distribute2_command_buffer(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE, sub_req_approxFlag);
+
+			ssd->dram->buffer->buffer_sector_count = ssd->dram->buffer->buffer_sector_count - sub_req_size;
+
+			pt = ssd->dram->buffer->buffer_tail;
+			avlTreeDel(ssd->dram->buffer, (TREE_NODE*)pt);
+			if (ssd->dram->buffer->buffer_head->LRU_link_next == NULL) {
+				ssd->dram->buffer->buffer_head = NULL;
+				ssd->dram->buffer->buffer_tail = NULL;
+			}
+			else {
+				ssd->dram->buffer->buffer_tail = ssd->dram->buffer->buffer_tail->LRU_link_pre;
+				ssd->dram->buffer->buffer_tail->LRU_link_next = NULL;
+			}
+			pt->LRU_link_next = NULL;
+			pt->LRU_link_pre = NULL;
+			AVL_TREENODE_FREE(ssd->dram->buffer, (TREE_NODE*)pt);
+			pt = NULL;
+		}
+	}
+	return ssd;
+}

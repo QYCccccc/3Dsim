@@ -274,8 +274,16 @@ struct ssd_info *simulate(struct ssd_info *ssd)
 		if (flag == 0 && ssd->request_queue == NULL)
 			flag = 100;
 	}
-
 	fclose(ssd->tracefile);
+	
+	if (ssd->dram->buffer->buffer_sector_count != 0)
+		flush_all_before_exit(ssd);
+	while (ssd->request_queue != NULL)
+	{
+		ssd->current_time = find_nearest_event(ssd);
+		process(ssd);
+		trace_output(ssd);
+	}
 	return ssd;
 }
 
@@ -463,11 +471,19 @@ void trace_output(struct ssd_info* ssd){
 			{
 				ssd->read_request_count++;
 				ssd->read_avg = ssd->read_avg + (req->response_time - req->time);
+				if(req->approxFlag == 1)
+				{
+					ssd->approx_read_request_count++;
+				}
 			}
 			else
 			{
 				ssd->write_request_count++;
 				ssd->write_avg = ssd->write_avg + (req->response_time - req->time);
+				if(req->approxFlag ==1)
+				{
+					ssd->approx_write_request_count++;
+				}
 			}
 
 			if (pre_node == NULL)
@@ -555,11 +571,19 @@ void trace_output(struct ssd_info* ssd){
 				{
 					ssd->read_request_count++;
 					ssd->read_avg = ssd->read_avg + (end_time - req->time);
+					if (req->approxFlag == 1)
+					{
+						ssd->approx_read_request_count++;
+					}
 				}
 				else
 				{
 					ssd->write_request_count++;
 					ssd->write_avg = ssd->write_avg + (end_time - req->time);
+					if (req->approxFlag == 1)
+					{
+						ssd->approx_write_request_count++;
+					}
 				}
 
 				while (req->subs != NULL)
@@ -709,12 +733,30 @@ void statistic_output(struct ssd_info *ssd)
 	fprintf(ssd->outputfile,"\n");
 	fprintf(ssd->outputfile,"---------------------------statistic data---------------------------\n");	 
 	fprintf(ssd->outputfile,"min lsn: %13d\n",ssd->min_lsn);	
-	fprintf(ssd->outputfile,"max lsn: %13d\n",ssd->max_lsn);
+	fprintf(ssd->outputfile,"max lsn: %13d\n\n",ssd->max_lsn);
+	
+	fprintf(ssd->outputfile, "write request count: %13d\n", ssd->write_request_count);
+	fprintf(ssd->outputfile, "approxmate write request count: %d\n", ssd->approx_write_request_count);
+	fprintf(ssd->outputfile, "program count: %13d\n", ssd->program_count);
+	fprintf(ssd->outputfile, "approxmate write count: %d\n\n", ssd->approx_write_count);
+	
+	fprintf(ssd->outputfile, "read request count: %13d\n", ssd->read_request_count);
+	fprintf(ssd->outputfile, "approxmate read request count: %d\n", ssd->approx_read_request_count);
 	fprintf(ssd->outputfile,"read count: %13d\n",ssd->read_count);	  
+	fprintf(ssd->outputfile, "approxmate read count: %d\n\n", ssd->approx_read_count);
+
+	fprintf(ssd->outputfile, "read request average size: %13f\n", ssd->ave_read_size);
+	fprintf(ssd->outputfile, "write request average size: %13f\n", ssd->ave_write_size);
+	fprintf(ssd->outputfile, "\n");
+	if (ssd->read_request_count != 0)
+		fprintf(ssd->outputfile, "read request average response time: %16I64u\n", ssd->read_avg / ssd->read_request_count);
+	if (ssd->write_request_count != 0)
+		fprintf(ssd->outputfile, "write request average response time: %16I64u\n", ssd->write_avg / ssd->write_request_count);
+	fprintf(ssd->outputfile, "\n");
+	
 	fprintf(ssd->outputfile,"the read operation leaded by un-covered update count: %13d\n",ssd->update_read_count);
 	fprintf(ssd->outputfile, "the read operation leaded by gc read count: %13d\n", ssd->gc_read_count);
 	fprintf(ssd->outputfile, "\n");
-	fprintf(ssd->outputfile, "program count: %13d\n", ssd->program_count);
 	fprintf(ssd->outputfile, "the write operation leaded by pre_process write count: %13d\n", ssd->pre_all_write);
 	fprintf(ssd->outputfile, "the write operation leaded by un-covered update count: %13d\n", ssd->update_write_count);
 	fprintf(ssd->outputfile, "the write operation leaded by gc read count: %13d\n", ssd->gc_write_count);
@@ -745,17 +787,6 @@ void statistic_output(struct ssd_info *ssd)
 	fprintf(ssd->outputfile,"write flash count: %13d\n",ssd->write_flash_count);
 	fprintf(ssd->outputfile, "\n");
 	
-	fprintf(ssd->outputfile,"read request count: %13d\n",ssd->read_request_count);
-	fprintf(ssd->outputfile,"write request count: %13d\n",ssd->write_request_count);
-	fprintf(ssd->outputfile, "\n");
-	fprintf(ssd->outputfile,"read request average size: %13f\n",ssd->ave_read_size);
-	fprintf(ssd->outputfile,"write request average size: %13f\n",ssd->ave_write_size);
-	fprintf(ssd->outputfile, "\n");
-	if (ssd->read_request_count != 0)
-		fprintf(ssd->outputfile, "read request average response time: %16I64u\n", ssd->read_avg / ssd->read_request_count);
-	if (ssd->write_request_count != 0)
-		fprintf(ssd->outputfile, "write request average response time: %16I64u\n", ssd->write_avg / ssd->write_request_count);
-	fprintf(ssd->outputfile, "\n");
 	fprintf(ssd->outputfile,"buffer read hits: %13d\n",ssd->dram->buffer->read_hit);
 	fprintf(ssd->outputfile,"buffer read miss: %13d\n",ssd->dram->buffer->read_miss_hit);
 	fprintf(ssd->outputfile,"buffer write hits: %13d\n",ssd->dram->buffer->write_hit);
