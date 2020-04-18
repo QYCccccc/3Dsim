@@ -732,9 +732,6 @@ unsigned int find_r_wait_sub_request(struct ssd_info * ssd, unsigned int channel
 	return sub_count;
 }
 
-
-
-
 /**
 *1.The state transition of the child request, and the calculation of the time, are handled by this function
 *2.The state of the execution of the normal command, and the calculation of the time, are handled by this function
@@ -818,8 +815,15 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			double speed_rate = 1.0;
 			if(ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag == 1)
 			{
+				//读取近似数据时，读取速度加快
 				speed_rate = ssd->parameter->speed_rate;
 				ssd->approx_read_count++;
+			}
+			else
+			{
+				//读取精确数据时,读取速度与块的可靠性有关
+				//获取访问的块的速度
+				speed_rate = ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].blk_reliability;
 			}
 			sub->current_time = ssd->current_time;
 			sub->current_state = SR_R_READ;
@@ -1751,7 +1755,15 @@ struct ssd_info *compute_serve_time(struct ssd_info *ssd, unsigned int channel, 
 		prog_time = ssd->parameter->time_characteristics.tPROG;
 		if (subs[0]->approxFlag == 1)
 		{
-			prog_time = prog_time * ssd->parameter->speed_rate;
+			//近似数据采用近似存储模式，加快写入速度
+			prog_time = (int)((double)prog_time * ssd->parameter->speed_rate);
+		}
+		else
+		{
+			//精确数据还需要考虑块的可靠性对写入速度的影响
+			prog_time = (int)((double)prog_time * ssd->channel_head[subs[0]->location->channel].chip_head[subs[0]->location->chip].
+				die_head[subs[0]->location->die].plane_head[subs[0]->location->plane].blk_head[subs[0]->location->block]
+				.blk_reliability);
 		}
 	}
 	else
