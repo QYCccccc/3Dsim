@@ -403,6 +403,7 @@ struct blk_info{
 	unsigned int page_read_count;	   //Record the number of read pages of the block
 	unsigned int page_write_count;	   //Record the number of write pages
 	unsigned int pre_write_count;	   //Record the number of times the prepress was written
+	double blk_reliability;	           //主要用于设计每个块的读取写入速度，以体现块的可靠性的差异，该参数用于在读取写入时，减少操作时间的比例，以达到加快操作的效果
 
 	unsigned int free_page_num;        //Record the number of pages in the block
 	unsigned int invalid_page_num;     //Record the number of invaild pages in the block
