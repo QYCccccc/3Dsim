@@ -812,7 +812,7 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			*这个目标状态是指flash处于读数据的状态，sub的下一状态就应该是传送数据SR_R_DATA_TRANSFER
 			*这时与channel无关，只与chip有关所以要修改chip的状态为CHIP_READ_BUSY，下一个状态就是CHIP_DATA_TRANSFER
 			******************************************************************************************************/
-			double speed_rate = 1.0;
+			int speed_rate = 10;
 			if(ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag == 1)
 			{
 				//读取近似数据时，读取速度加快
@@ -902,7 +902,7 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			*此时channel，chip的当前状态变为CHANNEL_TRANSFER，CHIP_WRITE_BUSY
 			*下一个状态变为CHANNEL_IDLE，CHIP_IDLE
 			*******************************************************************************************************/
-			double speed_rate = 1.0;
+			int speed_rate = 10;
 			if (sub->approxFlag == 1)
 			{
 				speed_rate = ssd->parameter->speed_rate;
@@ -911,7 +911,7 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			sub->current_state = SR_W_TRANSFER;
 			sub->next_state = SR_COMPLETE;
 			sub->next_state_predict_time = ssd->current_time + 7 * ssd->parameter->time_characteristics.tWC + 
-			(sub->size*ssd->parameter->subpage_capacity)*ssd->parameter->time_characteristics.tWC + (long long)((double)ssd->parameter->time_characteristics.tPROG * speed_rate);
+			(sub->size*ssd->parameter->subpage_capacity)*ssd->parameter->time_characteristics.tWC + ssd->parameter->time_characteristics.tPROG * speed_rate;
 			
 			sub->complete_time = sub->next_state_predict_time;
 			time = sub->complete_time;
@@ -1756,14 +1756,14 @@ struct ssd_info *compute_serve_time(struct ssd_info *ssd, unsigned int channel, 
 		if (subs[0]->approxFlag == 1)
 		{
 			//近似数据采用近似存储模式，加快写入速度
-			prog_time = (int)((double)prog_time * ssd->parameter->speed_rate);
+			prog_time = prog_time * ssd->parameter->speed_rate;
 		}
 		else
 		{
 			//精确数据还需要考虑块的可靠性对写入速度的影响
-			prog_time = (int)((double)prog_time * ssd->channel_head[subs[0]->location->channel].chip_head[subs[0]->location->chip].
+			prog_time = prog_time * ssd->channel_head[subs[0]->location->channel].chip_head[subs[0]->location->chip].
 				die_head[subs[0]->location->die].plane_head[subs[0]->location->plane].blk_head[subs[0]->location->block]
-				.blk_reliability);
+				.blk_reliability;
 		}
 	}
 	else

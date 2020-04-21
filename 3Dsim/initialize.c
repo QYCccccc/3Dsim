@@ -377,7 +377,7 @@ struct blk_info * initialize_block(struct blk_info * p_block,struct parameter_va
 	p_block->pre_write_count = 0;
 	// p_block->erase_limit = (unsigned int)((double)parameter->ers_limit * randomNum);
 	p_block->erase_limit = parameter->ers_limit;
-	p_block->blk_reliability = r_speed;
+	p_block->blk_reliability = (int)(r_speed * 10.0);
 
 	p_block->free_page_num = parameter->page_block;	// all pages are free
 	p_block->last_write_page = -1;	// no page has been programmed
@@ -693,7 +693,7 @@ struct parameter_value *load_parameters(char parameter_file[30])
 		}
 		else if ((res_eql = strcmp(buf, "speed_rate")) == 0)
 		{
-			sscanf(buf + next_eql, "%lf", &p->speed_rate);
+			sscanf(buf + next_eql, "%d", &p->speed_rate);
 		}
 		else{
 			printf("don't match\t %s\n",buf);

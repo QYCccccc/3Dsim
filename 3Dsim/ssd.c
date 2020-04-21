@@ -52,13 +52,6 @@ int secno_num_per_page, secno_num_sub_page;
 //parameters路径名
 char *parameters_file = "page.parameters";
 
-//trace 路径名
-char *trace_file = "exchange.ascii";
-
-//输出结构 路径名
-char *result_file_statistic = "exchange_statistic.dat";
-char *result_file_ex = "exchange_TDA_ex.dat";
-
 
 /********************************************************************************************************************************
 1，the initiation() used to initialize ssd;
@@ -73,6 +66,23 @@ pre-processing trace to prevent the read request is not read the data;
 
 void main()
 {
+	const char* trace_files[7] = { "trace/wdev0.ascii", "trace/ts0.ascii", "trace/src0.ascii",
+						"trace/rsrch0.ascii","trace/proj3.ascii","trace/hm0.ascii",
+						"trace/exchange.ascii" };
+	//trace 路径名
+
+
+	const char* traceouput_files[7] = { "trace_output/wdev0.dat", "trace_output/ts0.dat", "trace_output/src0.dat",
+							"trace_output/rsrch0.dat","trace_output/proj3.dat","trace_output/hm0.dat",
+							"trace_output/exchange.dat" };
+	const int traceIndex = 6;
+	//trace 路径名
+	const char* trace_file = trace_files[traceIndex];
+
+	//输出结构 路径名
+	const char* result_file_ex = traceouput_files[traceIndex];
+	char* result_file_statistic = "exchange_statistic.dat";
+	
 	struct ssd_info *ssd;
 
 	//初始化ssd结构体
