@@ -113,7 +113,6 @@ struct ssd_info *handle_write_buffer(struct ssd_info *ssd, struct request *req)
 	first_lpn = req->lsn / secno_num_per_page;   //计算lpn
 
 	//例如(lsn, size):(260,14)--->4kb对齐(256,24),此时f_lpn = l_lpn = 8
-
 	while (lpn <= last_lpn)       //lpn值在递增
 	{
 		mask = ~(0xffffffff << (ssd->parameter->subpage_page));   //掩码表示的是子页的掩码        //subpage_page      一页包含4个子页 

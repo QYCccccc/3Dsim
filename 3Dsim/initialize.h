@@ -377,7 +377,10 @@ struct plane_info{
 	unsigned int ers_invalid;           //Record the number of blocks in the plane that are erased
 	unsigned int active_block;          //The physical block number of the active block
 	int can_erase_block;                //Record in a plane prepared in the gc operation was erased block, -1 that has not found a suitable block
+	int reliable_block;
+	int unreliable_block;
 
+	
 	unsigned long plane_read_count;		//Record the number of read/program/erase in the plane
 	unsigned long plane_program_count;
 	unsigned long plane_erase_count;

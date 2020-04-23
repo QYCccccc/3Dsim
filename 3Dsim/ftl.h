@@ -33,8 +33,8 @@ struct local *find_location(struct ssd_info *ssd, unsigned int ppn);
 struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, struct sub_request *sub);
 void gc_check(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int old_plane);
 unsigned int gc(struct ssd_info *ssd, unsigned int channel, unsigned int flag);
-unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lpn);
-unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane);
+unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lpn, unsigned approxFlag);
+unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int approxFlag);
 unsigned int find_ppn(struct ssd_info * ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int block, unsigned int page);
 
 int gc_for_channel(struct ssd_info *ssd, unsigned int channel, unsigned int flag);
@@ -50,9 +50,6 @@ int resume_erase_operation(struct ssd_info * ssd, unsigned int channel, unsigned
 struct ssd_info *delete_suspend_command(struct ssd_info *ssd, unsigned int channel, unsigned int chip, struct suspend_spot * suspend_command);
 struct allocation_info* pre_process_allocation(struct ssd_info *ssd, unsigned int lpn);
 
-
-
-
-
-
-
+int find_block_for_approx(struct ssd_info* ssd, unsigned channel, unsigned chip, unsigned die, unsigned plane,unsigned approxFlag);
+int find_reliable_block(struct blk_info* blk_head, unsigned int blk_count);
+int find_unreliable_block(struct blk_info* blk_head, unsigned int blk_count);

@@ -75,7 +75,7 @@ void main()
 	const char* traceouput_files[7] = { "trace_output/wdev0.dat", "trace_output/ts0.dat", "trace_output/src0.dat",
 							"trace_output/rsrch0.dat","trace_output/proj3.dat","trace_output/hm0.dat",
 							"trace_output/exchange.dat" };
-	const int traceIndex = 6;
+	const int traceIndex = 5;
 	//trace Â·¾¶Ãû
 	const char* trace_file = trace_files[traceIndex];
 
@@ -286,14 +286,14 @@ struct ssd_info *simulate(struct ssd_info *ssd)
 	}
 	fclose(ssd->tracefile);
 	
-	if (ssd->dram->buffer->buffer_sector_count != 0)
-		flush_all_before_exit(ssd);
-	while (ssd->request_queue != NULL)
-	{
-		ssd->current_time = find_nearest_event(ssd);
-		process(ssd);
-		trace_output(ssd);
-	}
+	// if (ssd->dram->buffer->buffer_sector_count != 0)
+	// 	flush_all_before_exit(ssd);
+	// while (ssd->request_queue != NULL)
+	// {
+	// 	ssd->current_time = find_nearest_event(ssd);
+	// 	process(ssd);
+	// 	trace_output(ssd);
+	// }
 	return ssd;
 }
 

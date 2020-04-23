@@ -127,7 +127,6 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
 			lpn = lsn / secno_num_per_page;
 			last_lpn = (lsn + size - 1) / secno_num_per_page;
 			first_lpn = lsn / secno_num_per_page;   //计算lpn
-
 			while (lpn <= last_lpn)
 			{
 				mask = ~(0xffffffff << (ssd->parameter->subpage_page));   //掩码表示的是子页的掩码
@@ -159,7 +158,11 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
 					因此需要从SSD中先将数据写入该子页中然后以供读请求操作。
 					*/
 					//ppn = get_ppn_for_pre_process(ssd, lsn);
-					ppn = get_ppn_for_pre_process(ssd, lpn);
+					ppn = get_ppn_for_pre_process(ssd, lpn,approxFlag);
+					if(ppn == UINT_MAX)
+					{
+						return NULL;
+					}
 					location = find_location(ssd, ppn);
 					ssd->pre_all_write++;
 					ssd->dram->map->map_entry[lpn].pn = ppn;
@@ -404,10 +407,10 @@ struct allocation_info* pre_process_allocation(struct ssd_info *ssd, unsigned in
 *The function is to obtain the physical 
 *page number ppn for the preprocessor function
 **********************************************/
-unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lpn)
+unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lpn, unsigned approxFlag)
 {
 	unsigned int channel = 0, chip = 0, die = 0, plane = 0;
-	unsigned int ppn;
+	unsigned int ppn = UINT_MAX;
 	unsigned int active_block;
 	struct allocation_info*  lpn_location = NULL;
 
@@ -417,7 +420,6 @@ unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lpn)
 
 	//利用不同的分配算法，为预处理的数据分配位置
 	lpn_location = pre_process_allocation(ssd, lpn);
-	
 	channel = lpn_location->channel;
 	chip = lpn_location->chip;
 	die = lpn_location->die;
@@ -427,16 +429,26 @@ unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lpn)
 	*According to the above allocation method to find channel, chip, die, plane, 
 	*and then found in this active_block,Then get ppn
 	******************************************************************************/
-	if (find_active_block(ssd, channel, chip, die, plane) == FAILURE)
-	{
-		printf("the read operation is expand the capacity of SSD");
-		getchar();
-		return 0;
+	// if (find_active_block(ssd, channel, chip, die, plane) == FAILURE)
+	// {
+	// 	printf("the read operation is expand the capacity of SSD");
+	// 	getchar();
+	// 	return 0;
+	// }
+	find_block_for_approx(ssd, channel, chip, die, plane, approxFlag);
+	// active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
+	
+	if(approxFlag == 1) {
+		//如果当前为近似数据，那么操作的就是unreliable block
+		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].unreliable_block;
+	} 
+	else {
+		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].reliable_block;
 	}
-	active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
+	
 	if (write_page(ssd, channel, chip, die, plane, active_block, &ppn) == ERROR)
 	{
-		return 0;
+		return UINT_MAX;
 	}
 	
 	//free掉地址空间
@@ -472,17 +484,25 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 	lpn = sub->lpn;
 
 	/*************************************************************************************
-	*Use the function find_active_block() to find active blocks in channel, chip, die, plane
+	*Use the function find_block_for_approx() to find active blocks in channel, chip, die, plane
 	*And modify the channel, chip, die, plane, active_block under the last_write_page and free_page_num
 	**************************************************************************************/
-	if (find_active_block(ssd, channel, chip, die, plane) == FAILURE)
-	{
-		printf("ERROR :there is no free page in channel:%d, chip:%d, die:%d, plane:%d\n", channel, chip, die, plane);
-		getchar();
-		return ssd;
+	// if (find_active_block(ssd, channel, chip, die, plane) == FAILURE)
+	// {
+	// 	printf("ERROR :there is no free page in channel:%d, chip:%d, die:%d, plane:%d\n", channel, chip, die, plane);
+	// 	getchar();
+	// 	return ssd;
+	// }
+	find_block_for_approx(ssd, channel, chip, die, plane, sub->approxFlag);
+	if(sub->approxFlag == 1) {
+		//如果当前为近似数据，那么操作的就是unreliable block
+		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].unreliable_block;
+	} 
+	else {
+		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].reliable_block;
 	}
-
-	active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
+	// active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
+	
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].last_write_page++;
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].free_page_num--;
 
@@ -512,7 +532,8 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 	{
 		ppn = ssd->dram->map->map_entry[lpn].pn;
 		location = find_location(ssd, ppn);
-		if (ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn != lpn)
+		struct page_info tmp_page = ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page];
+		if (tmp_page.lpn != lpn)
 		{
 
 			printf("\nError in get_ppn()\n");
@@ -1192,6 +1213,7 @@ int greedy_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, uns
 	int block1, block2;
 	
 	unsigned int active_block;
+	unsigned int active_reliable_block, active_unreliable_block;
 	unsigned int block;
 	unsigned int page_move_count = 0;
 	struct direct_erase * direct_erase_node_tmp = NULL;
@@ -1204,22 +1226,36 @@ int greedy_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, uns
 	//gets active blocks within all plane
 	for ( p = 0; p < ssd->parameter->plane_die; p++)
 	{
-		if ( find_active_block(ssd, channel, chip, die, p) != SUCCESS )
-		{
-			free(erase_block);
-			erase_block = NULL;
-			printf("\n\n Error in uninterrupt_gc().\n");
-			return ERROR;
-		}
-		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].active_block;
+		// if ( find_active_block(ssd, channel, chip, die, p) != SUCCESS )
+		// {
+		// 	free(erase_block);
+		// 	erase_block = NULL;
+		// 	printf("\n\n Error in uninterrupt_gc().\n");
+		// 	return ERROR;
+		// }
+		// active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].active_block;
+
+		find_block_for_approx(ssd, channel, chip, die, p, 1);
+		find_block_for_approx(ssd, channel, chip, die, p, 0);
+		active_unreliable_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].unreliable_block;
+		active_reliable_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].reliable_block;
+
 		
 		//find the largest number of invalid pages in plane
 		invalid_page = 0;
 		block = -1;
 		direct_erase_node_tmp = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].erase_node;
-		for (i = 0; i<ssd->parameter->block_plane; i++)																					 /*Find the maximum number of invalid_page blocks, and the largest invalid_page_num*/
+		for (i = 0; i<ssd->parameter->block_plane; i++)	/*Find the maximum number of invalid_page blocks, and the largest invalid_page_num*/
 		{
-			if ((active_block != i) && (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num>invalid_page)) /*Can not find the current active block*/
+			// if ((active_block != i) && (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num>invalid_page)) /*Can not find the current active block*/
+			// {
+			// 	invalid_page = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num;
+			// 	block = i;
+			// }
+			
+			/*Can not find the current active block*/
+			if((i != active_reliable_block) && (i != active_unreliable_block) && 
+				(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num > invalid_page))
 			{
 				invalid_page = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num;
 				block = i;
@@ -1430,11 +1466,12 @@ Status resume_erase_operation(struct ssd_info * ssd, unsigned int channel, unsig
 }
 
 
+
 /*****************************************************************************************
 *This function is for the gc operation to find a new ppn, because in the gc operation need 
 *to find a new physical block to store the original physical block data
 ******************************************************************************************/
-unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane)
+unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int approxFlag)
 {
 	unsigned int ppn;
 	unsigned int active_block, block, page;
@@ -1443,14 +1480,24 @@ unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned
 	printf("enter get_ppn_for_gc,channel:%d, chip:%d, die:%d, plane:%d\n", channel, chip, die, plane);
 #endif
 
-	if (find_active_block(ssd, channel, chip, die, plane) != SUCCESS)
+	// if (find_active_block(ssd, channel, chip, die, plane) != SUCCESS)
+	// {
+	// 	printf("\n\n Error int get_ppn_for_gc().\n");
+	// 	return 0xffffffff;
+	// }
+	//
+	// active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
+
+	find_block_for_approx(ssd, channel, chip, die, plane, approxFlag);
+
+	if(approxFlag == 1)
 	{
-		printf("\n\n Error int get_ppn_for_gc().\n");
-		return 0xffffffff;
+		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].unreliable_block;
 	}
-
-	active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
-
+	else
+	{
+		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].reliable_block;
+	}
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].last_write_page++;
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].free_page_num--;
 
@@ -1544,4 +1591,75 @@ Status  find_active_block(struct ssd_info *ssd, unsigned int channel, unsigned i
 	}
 }
 
+int find_block_for_approx(struct ssd_info* ssd, unsigned channel, unsigned chip, unsigned die, unsigned plane,
+	unsigned approxFlag)
+{
+	unsigned int active_block = 0;
+	unsigned int free_page_num = 0;
+	const unsigned int blk_count = ssd->parameter->block_plane;
+	struct blk_info* blk_head = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head;
+	if(approxFlag == 1)
+	{
+		//近似数据分配到可靠性较低的块中
+		int unreliable_blk = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].unreliable_block;
+		free_page_num = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[unreliable_blk].free_page_num;
+		if (free_page_num == 0)
+		{
+			//当前块没有可用page,重新找到一个合适的块
+			unreliable_blk = find_unreliable_block(blk_head, blk_count);
+			ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].unreliable_block = unreliable_blk;
+		}
+		ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block = unreliable_blk;
+		
+		return SUCCESS;
+	}
+	else
+	{
+		//精确数据分配到可靠性较高的块中
+		int reliable_blk = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].reliable_block;
+		free_page_num = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[reliable_blk].free_page_num;
+		if(free_page_num == 0)
+		{
+			reliable_blk = find_reliable_block(blk_head, blk_count);
+			ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].reliable_block = reliable_blk;
+		}
+		ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block = reliable_blk;
+		return SUCCESS;
+	}
+}
 
+int find_reliable_block(struct blk_info* blk_head, unsigned int blk_count)
+{
+	int tmp_min_blk_num = 0;
+	int min_speed = 11;
+
+	for (int i = 0; i < blk_count; ++i)
+	{
+		if (blk_head[i].free_page_num > 0 ) {
+			if (blk_head[i].blk_reliability < min_speed)
+			{
+				min_speed = blk_head[i].blk_reliability;
+				tmp_min_blk_num = i;
+			}
+		}
+	}
+	return tmp_min_blk_num;
+}
+
+int find_unreliable_block(struct blk_info* blk_head, unsigned int blk_count)
+{
+	int tmp_max_blk_num = 0;
+	int max_speed = 0;
+
+	for (int i = 0; i < blk_count; ++i)
+	{
+		if (blk_head[i].free_page_num > 0) {
+			if (blk_head[i].blk_reliability > max_speed)
+			{
+				max_speed = blk_head[i].blk_reliability;
+				tmp_max_blk_num = i;
+			}
+		}
+	}
+	return tmp_max_blk_num;
+}

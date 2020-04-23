@@ -828,7 +828,7 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			sub->current_time = ssd->current_time;
 			sub->current_state = SR_R_READ;
 			sub->next_state = SR_R_DATA_TRANSFER;
-			sub->next_state_predict_time = ssd->current_time + (long long)((double)ssd->parameter->time_characteristics.tR * speed_rate);
+			sub->next_state_predict_time = ssd->current_time + ssd->parameter->time_characteristics.tR * (long long)speed_rate;
 
 			ssd->read_count++;
 			ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_read_count++;
@@ -838,8 +838,6 @@ Status go_one_step(struct ssd_info * ssd, struct sub_request ** subs, unsigned i
 			ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_DATA_TRANSFER;
 			//ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = ssd->current_time + ssd->parameter->time_characteristics.tR;
 			ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = sub->next_state_predict_time;
-			
-		
 			break;
 		}
 
