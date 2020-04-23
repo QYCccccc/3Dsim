@@ -377,7 +377,7 @@ struct blk_info * initialize_block(struct blk_info * p_block,struct parameter_va
 	p_block->pre_write_count = 0;
 	// p_block->erase_limit = (unsigned int)((double)parameter->ers_limit * randomNum);
 	p_block->erase_limit = parameter->ers_limit;
-	p_block->blk_reliability = r_speed;
+	p_block->blk_reliability = (int)(r_speed * 10.0);
 
 	p_block->free_page_num = parameter->page_block;	// all pages are free
 	p_block->last_write_page = -1;	// no page has been programmed
@@ -407,6 +407,9 @@ struct plane_info * initialize_plane(struct plane_info * p_plane,struct paramete
 	p_plane->plane_erase_count = 0;
 	p_plane->pre_plane_write_count = 0;
 
+	p_plane->reliable_block = -1;
+	p_plane->unreliable_block = -1;
+	
 	p_plane->subs_w_head = NULL;
 	p_plane->subs_w_tail = NULL;
 	p_plane->subs_r_head = NULL;
@@ -421,6 +424,9 @@ struct plane_info * initialize_plane(struct plane_info * p_plane,struct paramete
 		p_block = &(p_plane->blk_head[i]);
 		initialize_block( p_block ,parameter);			
 	}
+	p_plane->reliable_block = find_reliable_block(p_plane->blk_head, parameter->block_plane);
+	p_plane->unreliable_block = find_unreliable_block(p_plane->blk_head, parameter->block_plane);
+	
 	return p_plane;
 }
 
@@ -693,7 +699,7 @@ struct parameter_value *load_parameters(char parameter_file[30])
 		}
 		else if ((res_eql = strcmp(buf, "speed_rate")) == 0)
 		{
-			sscanf(buf + next_eql, "%lf", &p->speed_rate);
+			sscanf(buf + next_eql, "%d", &p->speed_rate);
 		}
 		else{
 			printf("don't match\t %s\n",buf);

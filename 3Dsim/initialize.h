@@ -377,7 +377,10 @@ struct plane_info{
 	unsigned int ers_invalid;           //Record the number of blocks in the plane that are erased
 	unsigned int active_block;          //The physical block number of the active block
 	int can_erase_block;                //Record in a plane prepared in the gc operation was erased block, -1 that has not found a suitable block
+	int reliable_block;
+	int unreliable_block;
 
+	
 	unsigned long plane_read_count;		//Record the number of read/program/erase in the plane
 	unsigned long plane_program_count;
 	unsigned long plane_erase_count;
@@ -403,7 +406,7 @@ struct blk_info{
 	unsigned int page_read_count;	   //Record the number of read pages of the block
 	unsigned int page_write_count;	   //Record the number of write pages
 	unsigned int pre_write_count;	   //Record the number of times the prepress was written
-	double blk_reliability;	           //主要用于设计每个块的读取写入速度，以体现块的可靠性的差异，该参数用于在读取写入时，减少操作时间的比例，以达到加快操作的效果
+	int blk_reliability;	           //主要用于设计每个块的读取写入速度，以体现块的可靠性的差异，该参数用于在读取写入时，减少操作时间的比例，以达到加快操作的效果
 
 	unsigned int free_page_num;        //Record the number of pages in the block
 	unsigned int invalid_page_num;     //Record the number of invaild pages in the block
@@ -596,7 +599,7 @@ struct parameter_value{
 	int update_reqeust_max;		    //request the length of sub request(partial page)
 	int flash_mode;                 //0--slc mode,1--tlc mode
 	unsigned int approxFlag;			//近似标签。1表示近似模式，2表示精确模式
-	double speed_rate;				//近似加速比,即采用近似模式可以加快操作介质的时间的比例
+	int speed_rate;				//近似加速比,即采用近似模式可以加快操作介质的时间的比例
 
 	struct ac_time_characteristics time_characteristics;
 };

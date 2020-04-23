@@ -81,9 +81,9 @@ Status move_page(struct ssd_info * ssd, struct local *location, unsigned int mov
 	valid_state = ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state;
 	free_state = ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state;
 	old_ppn = find_ppn(ssd, location->channel, location->chip, location->die, location->plane, location->block, location->page);      /*record ppn of this active mobile page, compare ppn in map, delete or add operations*/
+	const unsigned int approx_flag = ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag;
 
-
-	ppn = get_ppn_for_gc(ssd, location->channel, location->chip, location->die, move_plane);                /*Find out the ppn must be in gc operation of the plane, in order to use the copyback operation, for the gc operation to obtain ppn*/
+	ppn = get_ppn_for_gc(ssd, location->channel, location->chip, location->die, move_plane,approx_flag);                /*Find out the ppn must be in gc operation of the plane, in order to use the copyback operation, for the gc operation to obtain ppn*/
 
 	new_location = find_location(ssd, ppn);                                                                   /*Get new_location based on newly acquired ppn*/
 
@@ -93,6 +93,8 @@ Status move_page(struct ssd_info * ssd, struct local *location, unsigned int mov
 	ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].free_state = free_state;
 	ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].lpn = lpn;
 	ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].valid_state = valid_state;
+	//设置new page的近似标签
+	ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].approxFlag = approx_flag;
 	ssd->gc_write_count++;
 
 	//Read out the old valid page operation, set invalid
