@@ -1517,6 +1517,10 @@ unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].page_head[page].written_count++;
 	ssd->write_flash_count++;
 	ssd->program_count++;
+	if(approxFlag ==1)
+	{
+		ssd->approx_write_count++;
+	}
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].test_gc_count++;
 
 	return ppn;
