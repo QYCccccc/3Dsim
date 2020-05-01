@@ -36,7 +36,7 @@ Zuo Lu				2018/02/07        2.0			The release version 									lzuo@hust.edu.cn
 #include <time.h>
 #include <string.h>
 #include <crtdbg.h>  
-
+#include <math.h>
 
 #include "ssd.h"
 #include "initialize.h"
@@ -66,16 +66,24 @@ pre-processing trace to prevent the read request is not read the data;
 
 void main()
 {
-	const char* trace_files[7] = { "trace/wdev0.ascii", "trace/ts0.ascii", "trace/src0.ascii",
+	char* trace_files[20] = { "trace/wdev0.ascii", "trace/ts0.ascii", "trace/src0.ascii",
 						"trace/rsrch0.ascii","trace/proj3.ascii","trace/hm0.ascii",
-						"trace/exchange.ascii" };
+						"trace/hm1.ascii" ,"trace/financial1.ascii" ,
+						"trace/16G 4KB random R.ascii", "trace/16G 4KB random W.ascii", "trace/16G 4KB random RandW.ascii",
+						"trace/16G 4KB sequence R.ascii", "trace/16G 4KB sequence W.ascii", "trace/16G 4KB sequence RandW.ascii",
+						"trace/16G 16KB random R.ascii", "trace/16G 16KB random W.ascii", "trace/16G 16KB random RandW.ascii",
+						"trace/16G 16KB sequence R.ascii", "trace/16G 16KB sequence W.ascii", "trace/16G 16KB sequence RandW.ascii" };
 	//trace 路径名
 
 
-	const char* traceouput_files[7] = { "trace_output/wdev0.dat", "trace_output/ts0.dat", "trace_output/src0.dat",
+	char* traceouput_files[20] = { "trace_output/wdev0.dat", "trace_output/ts0.dat", "trace_output/src0.dat",
 							"trace_output/rsrch0.dat","trace_output/proj3.dat","trace_output/hm0.dat",
-							"trace_output/exchange.dat" };
-	const int traceIndex = 5;
+							"trace_output/hm1.dat" ,"trace_output/financial1.dat" ,
+							"trace_output/16G 4KB random R.dat", "trace_output/16G 4KB random W.dat", "trace_output/16G 4KB random RandW.dat",
+							"trace_output/16G 4KB sequence R.dat","trace_output/16G 4KB sequence W.dat", "trace_output/16G 4KB sequence RandW.dat",
+							"trace_output/16G 16KB random R.dat", "trace_output/16G 16KB random W.dat", "trace_output/16G 16KB random RandW.dat",
+							"trace_output/16G 16KB sequence R.dat","trace_output/16G 16KB sequence W.dat", "trace_output/16G 16KB sequence RandW.dat" };
+	const int traceIndex = 19;
 	//trace 路径名
 	const char* trace_file = trace_files[traceIndex];
 
@@ -763,6 +771,29 @@ void statistic_output(struct ssd_info *ssd)
 	if (ssd->write_request_count != 0)
 		fprintf(ssd->outputfile, "write request average response time: %16I64u\n", ssd->write_avg / ssd->write_request_count);
 	fprintf(ssd->outputfile, "\n");
+
+	if (ssd->read_request_count != 0)
+	{
+		ssd->Read_IOPS = ((double)ssd->read_request_count * pow(10.0, 9.0)) / ssd->read_avg;
+		ssd->Read_ThroughPut = ((double)ssd->read_request_count * ssd->ave_read_size * pow(10, 6)) / (ssd->read_avg);		  //avg * 2
+		fprintf(ssd->outputfile, "Read Read_IOPS: %d\n", ssd->Read_IOPS);
+		fprintf(ssd->outputfile, "Read ThroughPut: %dMB/s\n", ssd->Read_ThroughPut);
+	}
+	if (ssd->write_request_count != 0)
+	{
+		ssd->write_IOPS = ((double)ssd->write_request_count * pow(10.0, 9.0)) / ssd->write_avg;
+		ssd->write_ThroughPut = ((double)ssd->write_request_count * ssd->ave_write_size * pow(10, 6)) / (ssd->write_avg);
+		fprintf(ssd->outputfile, "Write Read_IOPS: %d\n", ssd->write_IOPS);
+		fprintf(ssd->outputfile, "Write ThroughPut: %dMB/s\n", ssd->write_ThroughPut);
+	}
+	if (ssd->read_request_count != 0 || ssd->write_request_count != 0)
+	{
+		ssd->total_IOPS = (((double)ssd->read_request_count + (double)ssd->write_request_count) * pow(10.0, 9.0)) / (ssd->read_avg + ssd->write_avg);
+		ssd->total_ThroughPut = (((double)ssd->read_request_count * ssd->ave_read_size + (double)ssd->write_request_count * ssd->ave_write_size) * pow(10.0, 6.0)) /
+			(double)((ssd->read_avg + ssd->write_avg));
+		fprintf(ssd->outputfile, "IOPS: %d\n", ssd->total_IOPS);
+		fprintf(ssd->outputfile, "ThroughPut: %dMB/s\n", ssd->total_ThroughPut);
+	}
 	
 	fprintf(ssd->outputfile,"the read operation leaded by un-covered update count: %13d\n",ssd->update_read_count);
 	fprintf(ssd->outputfile, "the read operation leaded by gc read count: %13d\n", ssd->gc_read_count);
