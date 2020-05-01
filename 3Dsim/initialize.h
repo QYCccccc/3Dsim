@@ -227,7 +227,10 @@ struct ssd_info{
 
 	__int64 write_avg;                   //Record the time to calculate the average response time for the write request
 	__int64 read_avg;                    //Record the time to calculate the average response time for the read request
-
+	int Read_IOPS;
+	int Read_ThroughPut;
+	int write_IOPS;
+	int write_ThroughPut;
 	unsigned int min_lsn;				//当前ssd最小的lsn
 	unsigned int max_lsn;
 
@@ -297,7 +300,8 @@ struct ssd_info{
 	struct sub_request *subs_w_tail;
 
 	struct channel_info *channel_head;   //Points to the first address of the channel structure array
-
+	int total_IOPS;
+	int total_ThroughPut;
 };
 
 
