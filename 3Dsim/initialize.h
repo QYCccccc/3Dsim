@@ -414,6 +414,7 @@ struct blk_info{
 
 	unsigned int free_page_num;        //Record the number of pages in the block
 	unsigned int invalid_page_num;     //Record the number of invaild pages in the block
+	unsigned int approx_page_num;
 	int last_write_page;               //Records the number of pages executed by the last write operation, and -1 indicates that no page has been written
 	struct page_info *page_head;       
 };

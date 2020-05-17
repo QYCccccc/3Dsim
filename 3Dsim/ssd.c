@@ -83,7 +83,7 @@ void main()
 							"trace_output/16G 4KB sequence R.dat","trace_output/16G 4KB sequence W.dat", "trace_output/16G 4KB sequence RandW.dat",
 							"trace_output/16G 16KB random R.dat", "trace_output/16G 16KB random W.dat", "trace_output/16G 16KB random RandW.dat",
 							"trace_output/16G 16KB sequence R.dat","trace_output/16G 16KB sequence W.dat", "trace_output/16G 16KB sequence RandW.dat" };
-	const int traceIndex = 19;
+	const int traceIndex = 7;
 	//trace Â·¾¶Ãû
 	const char* trace_file = trace_files[traceIndex];
 

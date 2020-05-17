@@ -446,7 +446,7 @@ unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lpn, uns
 		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].reliable_block;
 	}
 	
-	if (write_page(ssd, channel, chip, die, plane, active_block, &ppn) == ERROR)
+	if (write_page(ssd, channel, chip, die, plane, active_block, &ppn,approxFlag) == ERROR)
 	{
 		return UINT_MAX;
 	}
@@ -497,6 +497,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 	if(sub->approxFlag == 1) {
 		//如果当前为近似数据，那么操作的就是unreliable block
 		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].unreliable_block;
+		ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].approx_page_num++;
 	} 
 	else {
 		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].reliable_block;
@@ -544,6 +545,13 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;              
 		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = 0;
 
+		if(ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag == 1)
+		{
+			if (ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].approx_page_num > 0) {
+				ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].approx_page_num--;
+			}
+		}
+		
 		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].approxFlag = 0;
 		
 		ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num++;
@@ -1242,6 +1250,7 @@ int greedy_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, uns
 
 		
 		//find the largest number of invalid pages in plane
+		unsigned int approx_page = 0;
 		invalid_page = 0;
 		block = -1;
 		direct_erase_node_tmp = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].erase_node;
@@ -1254,11 +1263,25 @@ int greedy_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, uns
 			// }
 			
 			/*Can not find the current active block*/
-			if((i != active_reliable_block) && (i != active_unreliable_block) && 
-				(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num > invalid_page))
+			if(i != active_reliable_block && i != active_unreliable_block)
 			{
-				invalid_page = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num;
-				block = i;
+				//优先选择无效页面更多的块
+				if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num > invalid_page)
+				{
+					approx_page = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].approx_page_num;
+					invalid_page = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num;
+					block = i;
+				}
+				else if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num == invalid_page)
+				{
+					//无效页相同，则优先选择近似页面多的块
+					if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].approx_page_num > approx_page)
+					{
+						approx_page = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].approx_page_num;
+						invalid_page = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[p].blk_head[i].invalid_page_num;
+						block = i;
+					}
+				}
 			}
 		}
 		//Check whether all is invalid page, if all is, then the current block is invalid block, need to remove this node from the erase chain
@@ -1493,6 +1516,7 @@ unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned
 	if(approxFlag == 1)
 	{
 		active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].unreliable_block;
+		ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].approx_page_num++;
 	}
 	else
 	{

@@ -30,6 +30,6 @@ Zuo Lu				2018/02/07        2.0			The release version 									lzuo@hust.edu.cn
 
 int erase_operation(struct ssd_info * ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int block);
 int move_page(struct ssd_info * ssd, struct local *location, unsigned int move_plane, unsigned int * transfer_size);
-int write_page(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int active_block, unsigned int *ppn);
+int write_page(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int active_block, unsigned int *ppn, unsigned int approxFlag);
 
 struct ssd_info *flash_page_state_modify(struct ssd_info *, struct sub_request *, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int);

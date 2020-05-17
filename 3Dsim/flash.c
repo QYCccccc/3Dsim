@@ -52,6 +52,7 @@ Status erase_operation(struct ssd_info * ssd, unsigned int channel, unsigned int
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].plane_erase_count++;
 
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].free_page_num = ssd->parameter->page_block;
+	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].approx_page_num = 0;
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].invalid_page_num = 0;
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].last_write_page = -1;
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].erase_count++;
@@ -101,6 +102,12 @@ Status move_page(struct ssd_info * ssd, struct local *location, unsigned int mov
 	ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;
 	ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = 0;
 	ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0;
+	if(approx_flag == 1)
+	{
+		if (ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].approx_page_num > 0) {
+			ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].approx_page_num--;
+		}
+	}
 	ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num++;
 	ssd->gc_read_count++;
 	ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_read_count++;
@@ -120,7 +127,7 @@ Status move_page(struct ssd_info * ssd, struct local *location, unsigned int mov
 /*********************************************************************************************
 *this function is a simulation of a real write operation, to the pre-processing time to use
 *********************************************************************************************/
-Status write_page(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int active_block, unsigned int *ppn)
+Status write_page(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int active_block, unsigned int *ppn, unsigned int approxFlag)
 {
 	int last_write_page = 0;
 	last_write_page = ++(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].last_write_page);
@@ -130,7 +137,10 @@ Status write_page(struct ssd_info *ssd, unsigned int channel, unsigned int chip,
 		printf("error! the last write page larger than max!!\n");
 		return ERROR;
 	}
-
+	if(approxFlag == 1)
+	{
+		ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].approx_page_num++;
+	}
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].free_page_num--;
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page--;
 	ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].page_head[last_write_page].written_count++;

@@ -380,6 +380,8 @@ struct blk_info * initialize_block(struct blk_info * p_block,struct parameter_va
 	p_block->blk_reliability = (int)(r_speed * 10.0);
 
 	p_block->free_page_num = parameter->page_block;	// all pages are free
+	p_block->invalid_page_num = 0;
+	p_block->approx_page_num = 0;
 	p_block->last_write_page = -1;	// no page has been programmed
 
 	p_block->page_head = (struct page_info *)malloc(parameter->page_block * sizeof(struct page_info));
